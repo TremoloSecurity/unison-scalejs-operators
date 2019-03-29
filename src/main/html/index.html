@@ -157,60 +157,59 @@ limitations under the License.
 					<h2>{{ scale.config.frontPage.title }}</h2>
 					{{ scale.config.frontPage.text }}
 
-					<div class="row" ng-show="scale.saveUserErrors.length > 0">
-						<div class="alert alert-danger">
-							<b>There was a problem registering:</b>
-							<ul>
-								<li ng-repeat="msg in scale.saveUserErrors">{{ msg }}</li>
-							</ul>
-						</div>
-					</div>
-
-					<div class="row" ng-show="scale.saveUserSuccess">
-						<div class="alert alert-success" ng-show="scale.showForm">
-							<b>The user has been registered, you may create a new user</b>
-
-						</div>
-						<div class="alert alert-success" ng-hide="scale.showForm">
-							<b>Thank you for registering, your request has been submitted and you will be notified once approved</b>
-
-						</div>
-					</div>
+					
 
 					<!-- Edit user -->
 					<div ng-show="scale.showUser">
-
+						<div class="row" ng-show="scale.saveUserErrors.length > 0">
+							<div class="alert alert-danger" >
+								<b>There was a problem saving changes:</b>
+								<ul>
+										<li ng-repeat="msg in scale.saveUserErrors">{{ msg }}</li>
+								</ul>
+							</div>
+						</div>
+			
+						<div class="row" ng-show="scale.saveUserSuccess">
+							<div class="alert alert-success" >
+								<b>Changes saved successfully.  The changes may not be available immediately.</b>
+							</div>
+						</div>
 						<div class="row">
 							<div class="col-md-6">
 								<h3>Attributes</h3>
 								<!-- For users that can be edited -->
-								<div ng-show="scale.currentUser.canEdit">
+								<div ng-show="scale.currentUser.canEditUser">
 									<form name="saveUserForm">
-										<div class="row" ng-repeat="header in scale.config.resultsAttributes">
-											<div class="col-md-4">{{ header.label }}</div>
-											<div class="col-md-4" ng-hide="scale.currentUser.metaData[header.name].readOnly">
-												<input type="text" ng-show="scale.currentUser.metaData[header.name].type == 'text'" ng-model="scale.currentUser[header.name]"
-												 aria-label="{{ header.label }}" />
-												<textarea rows="10" cols="30" ng-show="scale.currentUser.metaData[header.name].type == 'textarea'" ng-model="scale.currentUser[header.name]"
-												 aria-label="{{ header.label }}">{{scale.userToSave[attributeConfig.name].value}}</textarea>
-												<select ng-show="scale.currentUser.metaData[header.name].type == 'list'" ng-model="scale.currentUser[header.name]" aria-label="{{ header.label }}"
-												 ng-options="option.value as option.name for option in scale.currentUser.metaData[header.name].values"></select>
+										<div class="row" ng-repeat="attr in scale.currentUser.attributes">
+											<div class="col-md-4">{{ scale.currentUser.metaData[attr.name].displayName }}</div>
+											<div class="col-md-4" ng-hide="scale.currentUser.metaData[attr.name].readOnly">
+												<input type="text" ng-show="! scale.currentUser.metaData[attr.name].type" ng-model="attr.values[0]"
+												 aria-label="{{ scale.currentUser.metaData[attr.name].displayName }}" />
+												<input type="text" ng-show="scale.currentUser.metaData[attr.name].type == 'text'" ng-model="attr.values[0]"
+												 aria-label="{{ scale.currentUser.metaData[attr.name].displayName }}" />
+												<textarea rows="10" cols="30" ng-show="scale.currentUser.metaData[attr.name].type == 'textarea'" ng-model="attr.values[0]"
+												 aria-label="{{ scale.currentUser.metaData[attr.name].displayName }}">{{attr.values[0]}}</textarea>
+												<select ng-show="scale.currentUser.metaData[attr.name].type == 'list'" ng-model="attr.values[0]" aria-label="{{ scale.currentUser.metaData[attr.name].displayName }}"
+												 ng-options="option.value as option.name for option in scale.currentUser.metaData[attr.name].values"></select>
 											</div>
-											<div class="col-md-4" ng-show="scale.currentUser.metaData[header.name].readOnly"><label>{{ scale.currentUser[header.name]
-													}}</label></div>
+											<div class="col-md-4" ng-show="scale.currentUser.metaData[attr.name].readOnly"><label>{{ attr.values[0] }}</label></div>
 										</div>
 										<div class="row">
-											<input type="button" ng-disabled="scale.saveUserDisabled" class="btn btn-lg btn-primary" value="Save" ng-click="scale.saveUser()"
-											/>
+											<div class="col-md-4">Reason For Update</div>
+											<div class="col-md-4"><input type="text" aria-label="Reason For Update" ng-model="scale.currentUser.changeReason" /></div>
+										</div>
+										<div class="row">
+											<input type="button" ng-disabled="scale.saveUserDisabled" class="btn btn-lg btn-primary" value="Save" ng-click="scale.saveUser()"/>
 										</div>
 									</form>
 								</div>
 
 								<!-- For users that can NOT be edited -->
-								<div ng-hide="scale.currentUser.canEdit">
-									<div class="row" ng-repeat="header in scale.config.resultsAttributes">
-										<div class="col-md-4">{{ header.label }}</div>
-										<div class="col-md-4"><label>{{ scale.currentUser[header.name] }}</label></div>
+								<div ng-hide="scale.currentUser.canEditUser">
+									<div class="row" ng-repeat="attr in scale.currentUser.attributes">
+										<div class="col-md-4">{{ scale.currentUser.metaData[attr.name].displayName }}</div>
+										<div class="col-md-4"><label>{{ attr.values[0] }}</label></div>
 									</div>
 								</div>
 
@@ -283,20 +282,25 @@ limitations under the License.
 							</table>
 						</div>
 						<div class="row" ng-show="scale.isUsersSelected()">
-							<treecontrol class="tree-light col-md-6" tree-model="scale.portalOrgs" options="scale.treeOptions" on-selection="scale.selectPortalOrgs(node)"
-							 selected-node="scale.portalOrgsSelectedNode" expanded-nodes="scale.portalOrgsExpandedNodes">
-								{{node.name}}
-							</treecontrol>
+							<treecontrol class="tree-light col-md-6"
+				   tree-model="scale.orgs"
+				   options="scale.treeOptions"
+				   on-selection="scale.selectRequestAccessOrg(node)"
+				   selected-node="scale.requestAccessOrgsSelectedNode"
+					 expanded-nodes="scale.requestAccessOrgsExpandedNodes">
+				   {{node.name}}
+				</treecontrol>
 
-							<div class="col-md-6">
-								<div class="alert alert-info ">
-									<h3>{{ scale.portalCurrentNode.name }}</h3>
-									{{ scale.portalCurrentNode.description }}
-								</div>
-							</div>
+				<div class="col-md-6">
+					<div class="alert alert-info " >
+						<h3 >{{ scale.requestAccessCurrentNode.name }}</h3>
+						{{ scale.requestAccessCurrentNode.description }}
+					</div>
+				</div>
+
 						</div>
 						<div class="row" ng-show="scale.isUsersSelected()">
-								<div class="row" ng-class-odd="'row-odd'" ng-class-even="'row-even'" ng-repeat="workflow in scale.workflows">
+								<div class="row" ng-class-odd="'row-odd'" ng-class-even="'row-even'" ng-repeat="workflow in scale.requestAccessCurentWorkflows">
 									<div class="col-md-4">
 										<a href ng-click="scale.executeWorkflow(workflow)">Run</a>
 									</div>
@@ -313,6 +317,23 @@ limitations under the License.
 								<div class="row">
 									<h4>Run {{scale.workflowToRun.name}} For Selected Users</h4>
 								</div>
+								<div class="row" ng-show="scale.submitRequestsErrors && scale.submitRequestsErrors.length > 0">
+									<div class="alert alert-danger" >
+										<b>There was a problem submitting the request : </b>
+										<ul>
+												<li ng-repeat="msg in scale.submitRequestsErrors">{{ msg }}</li>
+										</ul>
+									</div>
+								</div>
+					
+								<div class="row" ng-show="scale.submitRequestSuccess && scale.submitRequestSuccess.length > 0">
+									<div class="alert alert-success" >
+										<b>There following requests were successfully submitted : </b>
+										<ul>
+												<li ng-repeat="msg in scale.submitRequestSuccess">{{ msg }}</li>
+										</ul>
+									</div>
+								</div>
 								<div class="row">
 									<div class="col-md-2">
 										<b>Reason For Request</b>
@@ -323,15 +344,15 @@ limitations under the License.
 		
 								</div>
 								<div class="row" ng-show="scale.wfMetaData.canDelegate && scale.wfMetaData.canPreApprove">
-									<div class="col-md-12"><input type="checkbox" ng-model="scale.workflowToRun.tryPreApprove" /> Attempt Preapproval?</div>
+									<div class="col-md-12"><input type="checkbox" ng-model="scale.workflowToRun.doPreApproval" /> Attempt Preapproval?</div>
 								</div>
-								<div class="row" ng-show="scale.wfMetaData.canDelegate && scale.workflowToRun.tryPreApprove && scale.wfMetaData.canPreApprove">
+								<div class="row" ng-show="scale.wfMetaData.canDelegate && scale.workflowToRun.doPreApproval && scale.wfMetaData.canPreApprove">
 									<div class="col-md-12"><input type="radio" ng-model="scale.workflowToRun.approved" value="true" /> Approved</div>
 								</div>
-								<div class="row" ng-show="scale.wfMetaData.canDelegate && scale.workflowToRun.tryPreApprove && scale.wfMetaData.canPreApprove">
+								<div class="row" ng-show="scale.wfMetaData.canDelegate && scale.workflowToRun.doPreApproval && scale.wfMetaData.canPreApprove">
 									<div class="col-md-12"><input type="radio" ng-model="scale.workflowToRun.approved" value="false" /> Denied</div>
 								</div>
-								<div class="row" ng-show="scale.wfMetaData.canDelegate && scale.workflowToRun.tryPreApprove && scale.wfMetaData.canPreApprove">
+								<div class="row" ng-show="scale.wfMetaData.canDelegate && scale.workflowToRun.doPreApproval && scale.wfMetaData.canPreApprove">
 									<div class="col-md-1"><b>Reason</b></div>
 									<div class="col-md-11"><input type="text" ng-model="scale.workflowToRun.approvalReason" /></div>
 								</div>

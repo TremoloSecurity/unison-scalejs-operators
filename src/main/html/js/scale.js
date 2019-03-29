@@ -25,59 +25,8 @@ limitations under the License.
 
       this.appIsError = false;
       this.sessionLoaded = true;
-      this.config = {
-        "searchBases": ["County","Portal","Both"],
-        "searchableAttributes" : [
-          {
-            "name":"givenname",
-            "label":"First Name",
-            "picked":false,
-            "value":""
-          },
-          {
-            "name":"sn",
-            "label":"Last Name",
-            "picked":false,
-            "value":""
-          },
-          {
-            "name":"mail",
-            "label":"Email Address",
-            "picked":false,
-            "value":""
-          },
-          {
-            "name":"uid",
-            "label":"Login ID",
-            "picked":false,
-            "value":""
-          }
-        ],
-        "resultsAttributes":[
-          {
-            "name":"givenname",
-            "label":"First Name",
-          },
-          {
-            "name":"sn",
-            "label":"Last Name"
-          },
-          {
-            "name":"mail",
-            "label":"Email Address"
-          },
-          {
-            "name":"uid",
-            "label":"Login ID"
-          },
-          {
-            "name":"locked",
-            "label":"Locked"
-          }
-        ],
-        "displayNameAttribute":"uid"
-      };
-      this.search_base = "Both";
+      this.config = {};
+      this.search_base = "";
       this.currentTab = 'home';
       this.displayName = 'No User Loaded';
       this.showModal = false;
@@ -141,9 +90,10 @@ limitations under the License.
         }
     };
 
-      this.portalOrgs = [{"id":"687da09f-8ec1-48ac-b035-f2f182b9bd1e","name":"MyOrg","description":"MyOrg Enterprise Applications","subOrgs":[{"id":"fc8799cf-b947-4626-94bd-1ddda226bc16","name":"Auditors","description":"Reports for auditors","subOrgs":[]},{"id":"138d5182-c08d-41d5-bc42-6a4f406cf81b","name":"Users","description":"Tools for County users","subOrgs":[]},{"id":"0647d570-eb9c-482c-b0db-872fffd9c1b3","name":"Application Owners","description":"Tools for application owners","subOrgs":[]},{"id":"1dcf8354-03bd-416a-b613-50515bab38f2","name":"Operators","description":"For day-to-day operators","subOrgs":[]},{"id":"1e1f2a6b-b52d-4f23-84ce-dc0b2c9b46a8","name":"CPAN","description":"Workflows and Reports Specific to CPAN","subOrgs":[]}]}];
-      this.workflows = [{"name":"unlock-county-user","description":"Unlock county users that are locked","label":"Unlock County User","uuid":"4d3b5375-60c4-439f-8529-6e4d64f2ba03"},{"name":"unlock-portal-user","description":"Unlock External (Portal) users that are locked","label":"Unlock External User","uuid":"453aefec-a800-4f35-b826-3e333218af53"},{"name":"send-password-reset","description":"Initialize a password reset for the user","label":"Send Password Reset","uuid":"659a5810-3aff-4e29-b993-6b0320fbaade"}];
-      this.wfMetaData = {"canDelegate":true,"canPreApprove":true,"uuid":"8432aafe-5079-4cb1-a56a-85d7a120bf43"};
+      //this.portalOrgs = [{"id":"687da09f-8ec1-48ac-b035-f2f182b9bd1e","name":"MyOrg","description":"MyOrg Enterprise Applications","subOrgs":[{"id":"fc8799cf-b947-4626-94bd-1ddda226bc16","name":"Auditors","description":"Reports for auditors","subOrgs":[]},{"id":"138d5182-c08d-41d5-bc42-6a4f406cf81b","name":"Users","description":"Tools for County users","subOrgs":[]},{"id":"0647d570-eb9c-482c-b0db-872fffd9c1b3","name":"Application Owners","description":"Tools for application owners","subOrgs":[]},{"id":"1dcf8354-03bd-416a-b613-50515bab38f2","name":"Operators","description":"For day-to-day operators","subOrgs":[]},{"id":"1e1f2a6b-b52d-4f23-84ce-dc0b2c9b46a8","name":"CPAN","description":"Workflows and Reports Specific to CPAN","subOrgs":[]}]}];
+      //this.workflows = [{"name":"unlock-county-user","description":"Unlock county users that are locked","label":"Unlock County User","uuid":"4d3b5375-60c4-439f-8529-6e4d64f2ba03"},{"name":"unlock-portal-user","description":"Unlock External (Portal) users that are locked","label":"Unlock External User","uuid":"453aefec-a800-4f35-b826-3e333218af53"},{"name":"send-password-reset","description":"Initialize a password reset for the user","label":"Send Password Reset","uuid":"659a5810-3aff-4e29-b993-6b0320fbaade"}];
+      this.workflows = {};
+      this.wfMetaData = {"canDelegate":false,"canPreApprove":false,"uuid":""};
 
 
 
@@ -153,9 +103,70 @@ limitations under the License.
         return (typeof this.workflowToRun !== 'undefined') || (this.workflowToRun != null);
       }
 
+      this.submitWorkflow = function() {
+        this.submitRequestsDisabled = true;
+        this.submitRequestsErrors = [];
+        $scope.scale.submitRequestSuccess = [];
+        this.modalMessage = "Submitting Requests...";
+        this.showModal = true;
+
+        wfRequests = [];
+
+        wfRequest = JSON.parse(JSON.stringify(this.workflowToRun));
+        
+        wfRequest.subjects = [];
+
+        for (user of this.searchResults) {
+          if (user.picked) {
+            wfRequest.subjects.push(user[this.main_config.uidAttributeName]);
+          }
+        }
+
+        wfRequests.push(wfRequest);
+
+        $http.put(this.config.scaleJsMainUri + "/workflows",wfRequests).
+          then(function(response) {
+            $scope.scale.submitRequestsErrors = [];
+            $scope.scale.submitRequestSuccess = [];
+
+            for (wfuuid in  response.data) {
+              if (response.data[wfuuid] === "success") {
+                $scope.scale.submitRequestSuccess.push($scope.scale.workflowToRun.label);
+                
+              } else {
+                msg = $scope.scale.workflowToRun.label + ' - ' + response.data[wfuuid];
+                $scope.scale.submitRequestsErrors.push(msg);
+              }
+            }
+
+            $scope.scale.showModal = false;
+            $scope.scale.submitRequestsDisabled = false;
+          },
+          function(response) {
+            $scope.scale.submitRequestsErrors = response.data.errors;
+            $scope.scale.showModal = false;
+            $scope.scale.submitRequestsDisabled = false;
+          }
+        );
+
+      
+
+      }
+
       this.executeWorkflow = function(wf) {
+        $scope.scale.submitRequestsErrors = [];
+        $scope.scale.submitRequestSuccess = [];
         this.workflowToRun = wf;
 
+        $http.get(this.config.scaleJsMainUri + '/workflows/candelegate?workflowName=' + wf.name + '&uuid=' + wf.uuid).
+          then(function(response) {
+            $scope.scale.wfMetaData = response.data;
+
+          },
+          function(response) {
+            //do nothing
+          }
+        );
         //alert(this.wfMetaData.canDelegate && this.wfMetaData.canPreApprove);
       }
       this.isUsersSelected = function() {
@@ -174,71 +185,71 @@ limitations under the License.
 
 
       this.saveUser = function() {
-        alert(JSON.stringify(this.currentUser));
+        this.saveUserDisabled = true;
+        this.modalMessage = "Saving User...";
+        this.showModal = true;
+        saveUserData = {
+          "dn":this.currentUser.dn,
+          "reason":this.currentUser.changeReason,
+          "attributes":[]
+        };
+
+        for (attr of this.currentUser.attributes) {
+          if (! this.currentUser.metaData[attr.name].readOnly) {
+            saveUserData.attributes.push(attr);
+          }
+        }
+
+        this.saveUserSuccess = false;
+        this.saveUserErrors = [];
+
+        $http.post('ops/user',saveUserData).then(
+          function(response) {
+            $scope.scale.saveUserDisabled = false;
+            $scope.scale.showModal = false;
+            $scope.scale.saveUserSuccess = true;
+            $scope.scale.saveUserErrors = [];
+          },
+          function(response) {
+            $scope.scale.saveUserDisabled = false;
+            $scope.scale.showModal = false;
+            $scope.scale.saveUserErrors = response.data.errors;
+          }
+        );
+
+
       }
 
       this.viewUser = function(userObj) {
-        this.modalMessage = "Submitting Search...";
-        this.showModal = true;
-        
-        
+        this.showForm = false;
+        this.showUser = true;
 
-        
+        this.modalMessage = "Loading User...";
+        this.showModal = true;
+
         user_dn = userObj['dn'];
 
-        $http.put('ops/user/' + encodeURIComponent(user_dn)).then(
+        $http.get('ops/user?dn=' + encodeURIComponent(user_dn)).then(
           function(response) {
-            $scope.scale.currnetUser = response.data;
+            $scope.scale.currentUser = response.data;
             this.showForm = false;
             this.showUser = true;
+            $scope.scale.showModal = false;
     
           },
           function(response) {
             //TODO error handling
           }
         );
-
-
-        /*this.currentUser = userObj;
-
-        this.currentUser.metaData = {
-          "uid": {
-            "readOnly":true,
-            "type":"text"
-          },
-          "givenname":{
-            "readOnly":false,
-            "type":"text"
-          },
-          "sn":{
-            "readOnly":false,
-            "type":"text"
-          },
-          "mail":{
-            "readOnly":false,
-            "type":"text"
-          },
-          "locked":{
-            "readOnly":false,
-            "type":"list",
-            "values":[
-              {
-                "name":"Yes",
-                "value":"1"
-              },
-              {
-                "name":"No",
-                "value":"0"
-              }
-            ]
-          }
-        }*/
+        
         
       }
 
       this.viewSearch = function(userObj) {
         this.showForm = true;
         this.showUser = false;
+
+        
 
         
       }
@@ -249,57 +260,25 @@ limitations under the License.
         $scope.scale.searchDisabled = true;
         $scope.scale.searchSuccess = false;
 
-        //alert("here");
+        search_data = {
+          "base" : $scope.scale.search_base,
+          "toSearch" : $scope.scale.config.searchableAttributes
+        };
 
-
-        this.searchResults = this.testSearchResults;
-
-        this.showModal = false;
-        $scope.scale.searchDisabled = false;
-        $scope.scale.searchSuccess = true;
-
-
-        
-
-
-        /*for (var i in $scope.scale.config.attributes) {
-          if ($scope.scale.config.attributes[i].type == 'list') {
-
-              if (typeof $scope.scale.newUser.attributes[$scope.scale.config.attributes[i].name] == 'undefined') {
-                $scope.scale.newUser.attributes[$scope.scale.config.attributes[i].name] = "";
-              } else {
-                $scope.scale.newUser.attributes[$scope.scale.config.attributes[i].name] = $scope.scale.newUser.attributes[$scope.scale.config.attributes[i].name].value;
-              }
-
-
-          }
-        }*/
-
-        /*$http.post('register/submit',this.newUser).then(
+        $http.put('ops/search',search_data).then(
           function(response) {
+            $scope.scale.searchResults = response.data;
             $scope.scale.showModal = false;
-            $scope.scale.saveUserDisabled = false;
-            $scope.scale.newUser = {};
-            $scope.scale.newUser.attributes = {};
+            $scope.scale.searchDisabled = false;
+            $scope.scale.searchSuccess = true;
 
-            for (var i in $scope.scale.config.attributes) {
-              $scope.scale.newUser.attributes[$scope.scale.config.attributes[i].name] = '';
-            };
-
-            $scope.scale.saveUserSuccess = true;
-            $scope.scale.saveUserErrors = [];
-            
-            $scope.scale.showForm = response.addNewUsers;
-            
           },
           function(response) {
-            $scope.scale.saveUserErrors = response.data.errors;
-            $scope.scale.showModal = false;
-            $scope.scale.saveUserDisabled = false;
-            $scope.scale.saveUserSuccess = false;
-            $scope.scale.showForm = true;
+            //TODO add error handling
           }
-        );*/
+        );
+
+        
       };
 
 
@@ -313,7 +292,7 @@ limitations under the License.
         if (val === 'logout') {
             this.finishLogout();
         } else if (val === 'home') {
-          window.location = this.config.homeURL;
+          window.location = this.config.homeUrl;
         } else {
           this.currentTab = val;
         }
@@ -337,59 +316,149 @@ limitations under the License.
         return ! mobile;
       };
 
+      this.reloadSession = function() {
+    	  $scope.scale.modalTitle = "Session Expired";
+        $scope.scale.modalMessage = "Your session has expired.  Click OK to login again or refresh your page";
+        $scope.scale.modalOKFunction = function() {
+          location.reload(true);
+        };
+        $scope.scale.modalShowFooter = true;
+        $scope.scale.showModal = true;
+        $scope.scale.showModal = true;
+      };
 
+      this.selectRequestAccessOrg = function(node) {
+        this.requestAccessCurrentNode = node;
+        this.loadWorkflowsErrors = [];
+
+        $http.get(this.config.scaleJsMainUri + '/workflows/org/' + this.requestAccessCurrentNode.id).
+          then(function(response) {
+            $scope.scale.workflows[$scope.scale.requestAccessCurrentNode.id] = response.data;
+            $scope.scale.requestAccessCurentWorkflows = $scope.scale.workflows[$scope.scale.requestAccessCurrentNode.id];
+          },
+          function(response) {
+            $scope.scale.loadWorkflowsErrors = response.data.errors;
+            $scope.scale.requestAccessCurentWorkflows = [];
+
+          }
+        );
+
+
+
+      };
 
       angular.element(document).ready(function () {
-        this.displayName = '';
+
+        $http.get('sessioncheck').
+    	  	then(function(response) {
+    	  		
+    	  	},
+    	  	
+    	  	function(response) {
+    	  		location.reload(true);
+    	  	}
+    	  	
+        );
+        
+
+        $interval(
+    			function() {
+    				$http.get('sessioncheck')
+    					.then(
+    						function(response) {
+    							$scope.scale.minsLeft = response.data.minsLeft;
+    							
+    							
+    							if ($scope.scale.minsLeft <= $scope.scale.main_config.warnMinutesLeft) {
+	    							$scope.scale.modalTitle = "Inactive Session";
+	    							$scope.scale.modalMessage = response.data.minsLeft + " minutes until your session ends.  Click OK to continue your session.";
+	    							$scope.scale.modalOKFunction = function() {
+	    								$http.get('sessioncheck').then(
+	    										function(response) {
+	    											$http.get('ops/config').then(
+	    		    										function(response) {
+	    		    											$scope.scale.showModal = false;
+	    		    										},
+	    		    										function(response) {
+	    		    											$scope.scale.showModal = false;
+	    		    											$scope.scale.reloadSession();
+	    		    										}
+	    		    								);
+	    										},
+	    										function(response) {
+	    											$scope.scale.showModal = false;
+	    											$scope.scale.reloadSession();
+	    										}
+	    								
+	    								);
+	    								
+	    							};
+	    							$scope.scale.showModal = true;
+	    							$scope.scale.modalShowFooter = true;
+    							}   
+    						},
+    						function(response) {
+    							$scope.scale.showModal = false;
+								$scope.scale.reloadSession();
+    						}
+    					
+    					);
+    			}, 1000 * 60
+    	);  
+
+
+        $scope.scale.displayName = '';
             
 
-            this.attributeConfigs = [];
-        this.setSessionLoadedComplete();
-        this.appIsError = false;
-        this.config = {};
-        alert("here");
-        /*$http.get('register/config').then(
+            
+        $scope.scale.setSessionLoadedComplete();
+        $scope.scale.appIsError = false;
+        $scope.scale.config = {};
+        
+        $http.get('ops/config').then(
           function(response) {
             $scope.scale.config = response.data;
-            $scope.scale.displayName = '';
-            $scope.scale.newUser.attributes = {};
+            $scope.scale.search_base = $scope.scale.config.searchBases[0];
 
-            $scope.scale.attributeConfigs = [];
-            
-            
-            for (var i in $scope.scale.config.attributeNameList) {
-              $scope.scale.newUser.attributes[$scope.scale.config.attributeNameList[i]] = '';
-              $scope.scale.attributeConfigs.push($scope.scale.config.attributes[$scope.scale.config.attributeNameList[i]]);
-            };
+            $http.get($scope.scale.config.scaleJsMainUri + '/config').then(
+              function(response) {
+                $scope.scale.main_config = response.data;
+                
 
-            $scope.scale.setSessionLoadedComplete();
-            $scope.scale.appIsError = false;
+                $http.get($scope.scale.config.scaleJsMainUri + '/user').then(
+                  function(response) {
+                    $scope.scale.main_user = response.data;
 
+                    for (var i in  $scope.scale.main_user.attributes) {
+                      if ($scope.scale.main_user.attributes[i].values.length > 0 && $scope.scale.main_user.attributes[i].name === $scope.scale.main_config.displayNameAttribute) {
+                        $scope.scale.displayName = $scope.scale.main_user.attributes[i].values[0];
+                      }
+                    }
 
-            if ($scope.scale.config.requireReCaptcha) {
-            	if (typeof grecaptcha != "undefined") {
-	            	grecaptcha.render('recaptcha', {
-	                    'sitekey' : $scope.scale.config.rcSiteKey
-	                  });
-            	} else {
+                    $http.get($scope.scale.config.scaleJsMainUri + '/orgs').then(
+                      function(response) {
+                        $scope.scale.orgs = [response.data];
+                        $scope.scale.requestAccessOrgsSelectedNode = $scope.scale.orgs[0];
+                        $scope.scale.requestAccessOrgsExpandedNodes =[$scope.scale.orgs[0]];
+                        $scope.scale.selectRequestAccessOrg($scope.scale.orgs[0]);
+                      },
+                      function(response) {
+                        $scope.scale.appIsError = true;
+                      }
+                    );
+                    
+                  },
+                  function(response) {
+                    $scope.scale.appIsError = true;
+                  }
+    
+                );
+              },
+              function(response) {
+                $scope.scale.appIsError = true;
+              }
 
-
-            		$interval(function() {
-            			if (captchaloaded == true) {
-
-            				grecaptcha.render('recaptcha', {
-        	                    'sitekey' : $scope.scale.config.rcSiteKey
-        	                  });
-
-            				captchaloaded = false;
-            			}
-            		},1000,10);
-
-
-
-
-            	}
-            }
+            );
 
 
 
@@ -400,7 +469,7 @@ limitations under the License.
             //$scope.$apply();
           }
 
-        );*/
+        );
 
 
 
@@ -427,6 +496,9 @@ limitations under the License.
                     '<h4 class="modal-title">{{ title }}</h4>' +
                   '</div>' +
                   '<div class="modal-body" ng-transclude></div>' +
+                  '<div class="modal-footer" ng-show="scale.modalShowFooter">' + 
+                  
+                  '<button type="button" class="btn-primary btn-lg" ng-click="scale.modalOKFunction()" >OK</button>' +
                 '</div>' +
               '</div>' +
             '</div>',
